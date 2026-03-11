@@ -19,6 +19,11 @@ function createApp() {
 
   app.use(helmet());
   app.use(cors({ origin: '*', methods: ['GET','POST','PUT','DELETE','PATCH','OPTIONS'], allowedHeaders: ['Content-Type','Authorization','X-Admin-Key'] }));
+  app.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Private-Network', 'true');
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+    next();
+  });
   app.use(express.json({ limit: "1mb" }));
   app.use(morgan("combined"));
 

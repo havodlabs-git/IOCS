@@ -1,5 +1,7 @@
 # IOCs App — Frontend + Backend Integrados
 
+sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+
 Aplicação completa para gerenciamento de IOCs (Indicators of Compromise), composta por:
 
 - **Frontend**: React + Vite + TailwindCSS (porta 80 via Nginx)

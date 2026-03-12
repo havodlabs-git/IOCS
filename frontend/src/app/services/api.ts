@@ -7,7 +7,7 @@
  * Em produção (Docker), a variável VITE_API_URL define a base URL.
  */
 
-const BASE_URL = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
+const BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
 async function request<T>(
   method: string,

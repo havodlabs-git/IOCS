@@ -11,7 +11,7 @@ RUN npm install
 COPY . .
 
 # URL da API (produção usa nginx proxy)
-ARG VITE_API_URL=/api
+ARG VITE_API_URL=
 ENV VITE_API_URL=$VITE_API_URL
 
 RUN npm run build

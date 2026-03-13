@@ -7,7 +7,7 @@ RUN npm install
 
 COPY . .
 
-# Em produção, NÃO queremos prefixar /api de novo
+# Não prefixar /api novamente no build
 ARG VITE_API_URL=
 ENV VITE_API_URL=${VITE_API_URL}
 

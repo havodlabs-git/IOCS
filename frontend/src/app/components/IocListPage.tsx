@@ -502,8 +502,8 @@ export function IocListPage({ iocs, loading, onRefresh, auth, settings }: IocLis
       return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
     });
 
-  // Apenas IOCs CUSTOMER podem ser selecionados (GLOBAL não pode ser editado)
-  const selectableIds = filtered.filter((i) => i.scope === 'CUSTOMER').map((i) => i.id);
+  // IOCs CUSTOMER e GLOBAL PENDING (próprio customer) podem ser selecionados para delete
+  const selectableIds = filtered.filter((i) => i.scope === 'CUSTOMER' || (i.scope === 'GLOBAL' && i.approvalStatus === 'PENDING')).map((i) => i.id);
   const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selected.has(id));
   const someSelected = selectableIds.some((id) => selected.has(id));
   const selectedCount = Array.from(selected).filter((id) => selectableIds.includes(id)).length;
@@ -753,6 +753,8 @@ export function IocListPage({ iocs, loading, onRefresh, auth, settings }: IocLis
               <tbody className="divide-y divide-slate-100">
                 {filtered.map((ioc, idx) => {
                   const isCustomer = ioc.scope === 'CUSTOMER';
+                  const isGlobalPending = ioc.scope === 'GLOBAL' && ioc.approvalStatus === 'PENDING';
+                  const isSelectable = isCustomer || isGlobalPending;
                   const isSelected = selected.has(ioc.id);
                   const isToggling = togglingId === ioc.id;
                   const isActive = ioc.status === 'active';
@@ -762,7 +764,7 @@ export function IocListPage({ iocs, loading, onRefresh, auth, settings }: IocLis
                       className={`transition-colors ${isSelected ? 'bg-blue-50 hover:bg-blue-100/60' : idx % 2 === 0 ? 'bg-white hover:bg-blue-50/40' : 'bg-slate-50/50 hover:bg-blue-50/40'}`}>
                       {/* Checkbox individual */}
                       <td className="px-3 py-3 w-10">
-                        {isCustomer ? (
+                        {isSelectable ? (
                           <button onClick={() => toggleSelect(ioc.id)}
                             className="flex items-center justify-center text-slate-300 hover:text-blue-600 transition-colors">
                             {isSelected
@@ -840,10 +842,18 @@ export function IocListPage({ iocs, loading, onRefresh, auth, settings }: IocLis
                               <Share2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
-                        ) : ioc.approvalStatus === 'PENDING' ? (
-                          <span className="flex items-center justify-center gap-1 text-xs text-amber-600 font-medium">
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />Pendente
-                          </span>
+                        ) : isGlobalPending ? (
+                          <div className="flex items-center justify-center gap-1.5">
+                            <span className="flex items-center gap-1 text-xs text-amber-600 font-medium">
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />Pendente
+                            </span>
+                            <button
+                              onClick={() => { setSelected(new Set([ioc.id])); setBulkAction('delete'); }}
+                              title="Retirar submissão"
+                              className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-red-600 hover:text-white bg-red-50 hover:bg-red-600 border border-red-200 hover:border-red-600 rounded-lg transition-all duration-150">
+                              <Trash2 className="w-3.5 h-3.5" />Retirar
+                            </button>
+                          </div>
                         ) : (
                           <span className="flex items-center justify-center gap-1 text-xs text-purple-500 font-medium">
                             <Globe className="w-3.5 h-3.5" />Global

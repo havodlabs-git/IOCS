@@ -318,7 +318,8 @@ router.delete("/delete", requireAdmin, async (req, res) => {
 
 /**
  * DELETE /api/IOCS/customer/delete?customerId=...&id=... (CUSTOMER/ADMIN)
- * Deleta um IOC CUSTOMER por id + customerId
+ * Deleta um IOC CUSTOMER por id + customerId.
+ * Também permite retirar um IOC GLOBAL PENDING submetido pelo próprio customer.
  */
 router.delete(
   "/customer/delete",
@@ -331,8 +332,13 @@ router.delete(
       if (!customerId) return res.status(400).json({ error: "CUSTOMER_ID_REQUIRED" });
       if (!id) return res.status(400).json({ error: "IOC_ID_REQUIRED" });
 
+      // Permite apagar: IOC CUSTOMER do próprio customer OU IOC GLOBAL PENDING submetido pelo próprio customer
       const r = await pool.query(
-        "DELETE FROM iocs WHERE id = $1 AND scope = 'CUSTOMER' AND customer_id = $2 RETURNING *",
+        `DELETE FROM iocs
+         WHERE id = $1
+           AND customer_id = $2
+           AND (scope = 'CUSTOMER' OR (scope = 'GLOBAL' AND approval_status = 'PENDING'))
+         RETURNING *`,
         [id, customerId]
       );
       if (r.rowCount === 0) return res.status(404).json({ error: "IOC_NOT_FOUND" });

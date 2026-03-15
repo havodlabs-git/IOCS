@@ -11,16 +11,11 @@ const express = require("express");
 const speakeasy = require("speakeasy");
 const QRCode = require("qrcode");
 const { pool } = require("../db");
-const jwt = require("jsonwebtoken");
+const { verifyToken } = require("../auth");
 
 const router = express.Router();
 
-const JWT_SECRET = process.env.JWT_SECRET || "changeme-super-secret";
 const APP_NAME = process.env.MFA_APP_NAME || "CWO IOC Manager";
-
-function verifyToken(token) {
-  return jwt.verify(token, JWT_SECRET);
-}
 
 function getCustomerIdFromReq(req) {
   const auth = req.headers.authorization || "";

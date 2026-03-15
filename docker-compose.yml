@@ -1,0 +1,63 @@
+services:
+  # ─────────────────────────────────────────────
+  # Banco de dados PostgreSQL
+  # ─────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ioc
+      POSTGRES_PASSWORD: iocpass
+      POSTGRES_DB: iocdb
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - iocnet
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ioc -d iocdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # ─────────────────────────────────────────────
+  # Backend Node.js (API)
+  # ─────────────────────────────────────────────
+  api:
+    build:
+      context: ./backend
+    env_file:
+      - ./backend/.env
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - iocnet
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────
+  # Frontend React (Vite build + Nginx)
+  # O Nginx faz proxy reverso de /api/* → api:3000
+  # ─────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      # VITE_API_URL vazio: o Nginx cuida do proxy /api → api:3000
+      args:
+        VITE_API_URL: ""
+    depends_on:
+      - api
+    networks:
+      - iocnet
+    ports:
+      - "80:80"
+    restart: unless-stopped
+
+networks:
+  iocnet:
+    driver: bridge
+
+volumes:
+  db_data:

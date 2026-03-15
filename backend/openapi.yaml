@@ -1,0 +1,529 @@
+openapi: 3.0.3
+info:
+  title: IOC Backend API
+  version: 1.0.0
+  description: >
+    API para registrar customers, usuários, emitir/autenticar tokens e gerenciar IOCs
+    (globais e por customer). Backend em Node.js + Express com PostgreSQL.
+servers:
+  - url: /api
+    description: Servidor local (relativo)
+  - url: http://localhost:3000/api
+    description: Desenvolvimento directo
+
+tags:
+  - name: Customer
+  - name: IOCS
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    adminKey:
+      type: apiKey
+      in: header
+      name: X-Admin-Key
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+
+    CustomerRegisterRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          example: ACME SOC
+
+    CustomerRegisterResponse:
+      type: object
+      properties:
+        customerId:
+          type: string
+          format: uuid
+        customerSecret:
+          type: string
+          description: Retornado apenas uma vez.
+
+    UserRegisterRequest:
+      type: object
+      required: [customerId, customerSecret, email, password]
+      properties:
+        customerId:
+          type: string
+          format: uuid
+        customerSecret:
+          type: string
+        email:
+          type: string
+          example: user@acme.com
+        password:
+          type: string
+          minLength: 8
+          example: "SenhaForte123!"
+
+    UserRegisterResponse:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        email:
+          type: string
+
+    TokenCreateRequest:
+      type: object
+      required: [customerId, customerSecret]
+      properties:
+        customerId:
+          type: string
+          format: uuid
+        customerSecret:
+          type: string
+
+    TokenCreateResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        tokenType:
+          type: string
+          example: Bearer
+        expiresIn:
+          type: string
+          example: 12h
+
+    TokenAuthRequest:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+
+    TokenAuthResponse:
+      type: object
+      properties:
+        valid:
+          type: boolean
+        payload:
+          type: object
+
+    IOC:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        scope:
+          type: string
+          enum: [GLOBAL, CUSTOMER]
+        customerId:
+          type: string
+          nullable: true
+          description: "Somente em scope CUSTOMER"
+        type:
+          type: string
+          example: ip
+        value:
+          type: string
+          example: 1.2.3.4
+        description:
+          type: string
+          example: C2 server
+        severity:
+          type: integer
+          nullable: true
+          minimum: 0
+          maximum: 10
+          example: 8
+        tags:
+          type: array
+          items:
+            type: string
+          example: [c2, apt]
+        status:
+          type: string
+          enum: [active, inactive]
+          example: active
+        source:
+          type: string
+          example: internal
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    IOCInput:
+      type: object
+      required: [type, value]
+      properties:
+        type:
+          type: string
+          example: domain
+        value:
+          type: string
+          example: bad.example
+        description:
+          type: string
+          example: Phishing landing
+        severity:
+          type: integer
+          minimum: 0
+          maximum: 10
+          nullable: true
+          example: 5
+        tags:
+          type: array
+          items: { type: string }
+          example: [phishing]
+        status:
+          type: string
+          enum: [active, inactive]
+          example: active
+        source:
+          type: string
+          example: threat-intel
+
+    IocCustomerAddRequest:
+      allOf:
+        - type: object
+          required: [customerId]
+          properties:
+            customerId:
+              type: string
+              format: uuid
+        - $ref: "#/components/schemas/IOCInput"
+
+    IocUpdateRequest:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+        value:
+          type: string
+        description:
+          type: string
+        severity:
+          type: integer
+          minimum: 0
+          maximum: 10
+          nullable: true
+        tags:
+          type: array
+          items: { type: string }
+        status:
+          type: string
+          enum: [active, inactive]
+        source:
+          type: string
+
+    IocCustomerUpdateRequest:
+      type: object
+      required: [customerId, id]
+      properties:
+        customerId:
+          type: string
+          format: uuid
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+        value:
+          type: string
+        description:
+          type: string
+        severity:
+          type: integer
+          minimum: 0
+          maximum: 10
+          nullable: true
+        tags:
+          type: array
+          items: { type: string }
+        status:
+          type: string
+          enum: [active, inactive]
+        source:
+          type: string
+
+paths:
+  /customer/register:
+    post:
+      tags: [Customer]
+      summary: Registra um customer no backend com um customer ID único
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CustomerRegisterRequest" }
+      responses:
+        "201":
+          description: Customer criado (retorna secret uma vez)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CustomerRegisterResponse" }
+        "400":
+          description: Requisição inválida
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /customer/user/register:
+    post:
+      tags: [Customer]
+      summary: Registra um usuário do customer no backend baseado no customer ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserRegisterRequest" }
+      responses:
+        "201":
+          description: Usuário criado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserRegisterResponse" }
+        "401":
+          description: Secret inválido
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /customer/token/create:
+    post:
+      tags: [Customer]
+      summary: Cria um token seguro (JWT) exclusivo para o customer ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TokenCreateRequest" }
+      responses:
+        "200":
+          description: Token emitido
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TokenCreateResponse" }
+        "401":
+          description: Secret inválido
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /customer/token/auth:
+    post:
+      tags: [Customer]
+      summary: Autentica o token do cliente (validação JWT)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TokenAuthRequest" }
+      responses:
+        "200":
+          description: Token válido
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TokenAuthResponse" }
+        "401":
+          description: Token inválido/expirado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /IOCS/list:
+    get:
+      tags: [IOCS]
+      summary: Lista os IOCs de todos os clientes (inclui GLOBAL + CUSTOMER)
+      security:
+        - adminKey: []
+      responses:
+        "200":
+          description: Lista completa
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/IOC" }
+
+  /IOCS/customer/list:
+    get:
+      tags: [IOCS]
+      summary: Lista os IOCs de um determinado customer ID (CUSTOMER + opcionalmente GLOBAL)
+      security:
+        - bearerAuth: []
+        - adminKey: []
+      parameters:
+        - in: query
+          name: customerId
+          required: true
+          schema: { type: string, format: uuid }
+        - in: query
+          name: includeGlobal
+          required: false
+          schema: { type: boolean, default: true }
+      responses:
+        "200":
+          description: Lista do customer
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  customerId: { type: string, format: uuid }
+                  includeGlobal: { type: boolean }
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/IOC" }
+
+  /IOCS/add:
+    post:
+      tags: [IOCS]
+      summary: Adiciona um IOC para a lista de todos os clientes (GLOBAL)
+      security:
+        - adminKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IOCInput" }
+      responses:
+        "201":
+          description: IOC GLOBAL criado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/IOC" }
+
+  /IOCS/customer/add:
+    post:
+      tags: [IOCS]
+      summary: Adiciona um IOC para a lista de um customer ID específico (CUSTOMER)
+      security:
+        - bearerAuth: []
+        - adminKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IocCustomerAddRequest" }
+      responses:
+        "201":
+          description: IOC CUSTOMER criado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/IOC" }
+
+  /IOCS/delete:
+    delete:
+      tags: [IOCS]
+      summary: Deleta um IOC da lista de todos os clientes (GLOBAL)
+      security:
+        - adminKey: []
+      parameters:
+        - in: query
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: IOC removido
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/IOC" }
+
+  /IOCS/customer/delete:
+    delete:
+      tags: [IOCS]
+      summary: Deleta um IOC de um customer específico (CUSTOMER)
+      security:
+        - bearerAuth: []
+        - adminKey: []
+      parameters:
+        - in: query
+          name: customerId
+          required: true
+          schema: { type: string, format: uuid }
+        - in: query
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: IOC removido
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/IOC" }
+
+  /IOCS/customer/update:
+    put:
+      tags: [IOCS]
+      summary: Atualiza um IOC de um customer específico (CUSTOMER)
+      security:
+        - bearerAuth: []
+        - adminKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IocCustomerUpdateRequest" }
+      responses:
+        "200":
+          description: IOC atualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/IOC" }
+
+  /IOCS/update:
+    put:
+      tags: [IOCS]
+      summary: Atualiza um IOC da lista de todos os clientes (GLOBAL)
+      security:
+        - adminKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IocUpdateRequest" }
+      responses:
+        "200":
+          description: IOC atualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/IOC" }

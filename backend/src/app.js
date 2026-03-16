@@ -32,6 +32,22 @@ const corsOptions = {
   credentials: true,
 };
 
+// Middleware que bloqueia acesso externo ao Swagger/OpenAPI
+// Apenas permite acesso a partir da rede interna Docker (172.x.x.x ou 127.x.x.x)
+function internalOnly(req, res, next) {
+  const ip = req.ip || req.connection.remoteAddress || "";
+  const isInternal =
+    ip.startsWith("127.") ||
+    ip.startsWith("::1") ||
+    ip.startsWith("172.") ||
+    ip.startsWith("10.") ||
+    ip === "::ffff:127.0.0.1";
+  if (!isInternal) {
+    return res.status(404).json({ error: "NOT_FOUND" });
+  }
+  return next();
+}
+
 function createApp() {
   const app = express();
 
@@ -49,11 +65,11 @@ function createApp() {
   // rate limit (principalmente para endpoints de token)
   app.use("/api/customer/token", rateLimit({ windowMs: 60_000, limit: 60 }));
 
-  // Swagger (apenas acessível localmente via rede interna Docker)
+  // Swagger — apenas acessível a partir da rede interna Docker
   const openapiPath = path.join(process.cwd(), "openapi.yaml");
   const spec = YAML.parse(fs.readFileSync(openapiPath, "utf8"));
-  app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(spec));
-  app.get("/api/openapi.yaml", (req, res) => res.sendFile(openapiPath));
+  app.use("/api/docs", internalOnly, swaggerUi.serve, swaggerUi.setup(spec));
+  app.get("/api/openapi.yaml", internalOnly, (req, res) => res.sendFile(openapiPath));
 
   // Rotas API
   app.get("/api/health", (req, res) => res.json({ ok: true }));
@@ -62,8 +78,23 @@ function createApp() {
   app.use("/api/IOCS", iocsRoutes);
   app.use("/api/mfa", mfaRoutes);
 
-  // 404
+  // 404 — mensagem genérica sem revelar estrutura interna
   app.use((req, res) => res.status(404).json({ error: "NOT_FOUND" }));
+
+  // Handler de erro global — nunca expõe stack traces ou detalhes internos
+  // eslint-disable-next-line no-unused-vars
+  app.use((err, req, res, next) => {
+    // Log interno para debugging (não exposto ao cliente)
+    console.error("[ERROR]", err.message || err);
+
+    // Erros de CORS
+    if (err.message === "CORS_ORIGIN_NOT_ALLOWED") {
+      return res.status(403).json({ error: "FORBIDDEN" });
+    }
+
+    // Todos os outros erros — resposta genérica
+    return res.status(500).json({ error: "INTERNAL_ERROR" });
+  });
 
   return app;
 }

@@ -33,6 +33,10 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Copia os arquivos buildados
 COPY --from=builder /app/dist /usr/share/nginx/html
 
+# Copia páginas de erro personalizadas (oculta versão do servidor)
+COPY error_pages/50x.html /usr/share/nginx/html/50x.html
+COPY error_pages/404.html /usr/share/nginx/html/404.html
+
 EXPOSE 443
 
 CMD ["nginx", "-g", "daemon off;"]

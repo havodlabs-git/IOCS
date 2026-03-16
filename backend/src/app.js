@@ -65,11 +65,11 @@ function createApp() {
   // rate limit (principalmente para endpoints de token)
   app.use("/api/customer/token", rateLimit({ windowMs: 60_000, limit: 60 }));
 
-  // Swagger — apenas acessível a partir da rede interna Docker
+  // Swagger — acessível externamente (desactivar quando não necessário)
   const openapiPath = path.join(process.cwd(), "openapi.yaml");
   const spec = YAML.parse(fs.readFileSync(openapiPath, "utf8"));
-  app.use("/api/docs", internalOnly, swaggerUi.serve, swaggerUi.setup(spec));
-  app.get("/api/openapi.yaml", internalOnly, (req, res) => res.sendFile(openapiPath));
+  app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(spec));
+  app.get("/api/openapi.yaml", (req, res) => res.sendFile(openapiPath));
 
   // Rotas API
   app.get("/api/health", (req, res) => res.json({ ok: true }));

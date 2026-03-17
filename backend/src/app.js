@@ -56,7 +56,25 @@ function createApp() {
 
   app.disable("x-powered-by");
 
-  app.use(helmet());
+  // Helmet configurado para NÃO definir os headers que o nginx já gere.
+  // Isto evita duplicação de headers (Finding #5 do re-test pentest).
+  // O nginx define: HSTS, X-Frame-Options, X-Content-Type-Options,
+  // X-XSS-Protection, Referrer-Policy, CSP, COOP, CORP.
+  app.use(helmet({
+    // Desactivar headers geridos pelo nginx
+    strictTransportSecurity: false,
+    xFrameOptions: false,
+    xContentTypeOptions: false,
+    xXssProtection: false,
+    referrerPolicy: false,
+    contentSecurityPolicy: false,
+    crossOriginOpenerPolicy: false,
+    crossOriginResourcePolicy: false,
+    // Manter apenas o que o nginx não define
+    dnsPrefetchControl: { allow: false },
+    permittedCrossDomainPolicies: false,
+    originAgentCluster: false,
+  }));
   app.use(cors(corsOptions));
   app.options("*", cors(corsOptions)); // preflight para todas as rotas
   app.use(express.json({ limit: "1mb" }));

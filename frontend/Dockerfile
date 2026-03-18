@@ -39,6 +39,11 @@ COPY error_pages/404.html /usr/share/nginx/html/404.html
 
 EXPOSE 443
 
+# Valores por defeito caso as variáveis não sejam passadas
+ENV BACKEND_HOST=api
+ENV BACKEND_PORT=3000
+
 # Script de arranque: substitui variáveis no template e inicia o Nginx
+# NOTA: as variáveis são escapadas com \ para evitar expansão prematura pelo shell
 CMD ["/bin/sh", "-c", \
-  "envsubst '${BACKEND_HOST} ${BACKEND_PORT}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]
+  "envsubst '$BACKEND_HOST $BACKEND_PORT' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -t && nginx -g 'daemon off;'"]

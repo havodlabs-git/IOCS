@@ -559,8 +559,9 @@ router.post("/blueteam/approve", requireAdmin, async (req, res) => {
     );
 
     return res.status(200).json({ data: mapRow(r.rows[0]), message: 'IOC_APPROVED' });
-  } catch {
-    return res.status(500).json({ error: "INTERNAL_ERROR" });
+  } catch (err) {
+    console.error('[blueteam/approve] ERROR:', err);
+    return res.status(500).json({ error: "INTERNAL_ERROR", detail: err.message });
   }
 });
 

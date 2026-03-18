@@ -5,15 +5,12 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Instala dependências
 COPY package*.json ./
 RUN npm install
 
-# Copia o restante do código
 COPY . .
 
-# Build de produção
-# VITE_API_URL pode ser sobrescrito via --build-arg ou variável de ambiente
+# VITE_API_URL vazio: o Nginx trata o proxy /api → backend
 ARG VITE_API_URL=
 ENV VITE_API_URL=${VITE_API_URL}
 
@@ -24,19 +21,24 @@ RUN npm run build
 # ──────────────────────────────────────────────
 FROM nginx:alpine
 
+# Instala gettext para o envsubst
+RUN apk add --no-cache gettext
+
 # Remove a config padrão do Nginx
 RUN rm /etc/nginx/conf.d/default.conf
 
-# Copia a config customizada
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copia a config como template (será processada pelo envsubst no arranque)
+COPY nginx.conf /etc/nginx/templates/default.conf.template
 
 # Copia os arquivos buildados
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copia páginas de erro personalizadas (oculta versão do servidor)
+# Copia páginas de erro personalizadas
 COPY error_pages/50x.html /usr/share/nginx/html/50x.html
 COPY error_pages/404.html /usr/share/nginx/html/404.html
 
 EXPOSE 443
 
-CMD ["nginx", "-g", "daemon off;"]
+# Script de arranque: substitui variáveis no template e inicia o Nginx
+CMD ["/bin/sh", "-c", \
+  "envsubst '${BACKEND_HOST} ${BACKEND_PORT}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]

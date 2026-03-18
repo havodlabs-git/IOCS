@@ -58,7 +58,8 @@ function CopyButtonLight({ text }: { text: string }) {
   );
 }
 
-function SecretField({ value, label }: { value: string; label: string }) {
+// Campo com eye toggle — usado apenas para o Customer ID
+function SecretFieldWithEye({ value, label }: { value: string; label: string }) {
   const [visible, setVisible] = useState(false);
   const masked = '•'.repeat(Math.min(value.length, 36));
   return (
@@ -76,6 +77,24 @@ function SecretField({ value, label }: { value: string; label: string }) {
           >
             {visible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </button>
+          <CopyButtonLight text={value} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Campo apenas com botão copiar — usado para o Customer Secret (sem eye)
+function SecretFieldCopyOnly({ value, label }: { value: string; label: string }) {
+  const masked = '•'.repeat(Math.min(value.length, 36));
+  return (
+    <div className="space-y-1.5">
+      <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">{label}</label>
+      <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5">
+        <code className="flex-1 text-sm font-mono text-slate-800 break-all">
+          {masked}
+        </code>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
           <CopyButtonLight text={value} />
         </div>
       </div>
@@ -214,7 +233,7 @@ const { data } = await fetch(
       {/* Two-column layout */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
 
-        {/* LEFT COLUMN — Credenciais + Tabela + Aviso */}
+        {/* LEFT COLUMN — Credenciais + Tabela */}
         <div className="space-y-4">
 
           {/* Warning */}
@@ -233,17 +252,8 @@ const { data } = await fetch(
             <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
               <Key className="w-4 h-4 text-slate-400" />Suas Credenciais
             </h3>
-            <SecretField value={auth.customerId}     label="Customer ID" />
-            <SecretField value={auth.customerSecret} label="Customer Secret" />
-            <div className="pt-2 border-t border-slate-100">
-              <div className="flex items-start gap-2 text-xs text-slate-500">
-                <Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-                <p>
-                  O <strong>Customer Secret</strong> foi exibido apenas uma vez no momento do registo.
-                  Se o perdeu, será necessário registar um novo customer.
-                </p>
-              </div>
-            </div>
+            <SecretFieldWithEye value={auth.customerId}     label="Customer ID" />
+            <SecretFieldCopyOnly value={auth.customerSecret} label="Customer Secret" />
           </div>
 
           {/* API Reference table */}
@@ -284,13 +294,6 @@ const { data } = await fetch(
             </div>
           </div>
 
-          {/* Token info */}
-          <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-            <Info className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-blue-700">
-              O token JWT expira após <strong>24 horas</strong>. Guarde o <strong>Customer Secret</strong> em local seguro — não pode ser recuperado após o registo.
-            </p>
-          </div>
         </div>
 
         {/* RIGHT COLUMN — Exemplos de código com tabs */}

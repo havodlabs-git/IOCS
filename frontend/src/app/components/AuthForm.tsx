@@ -142,7 +142,7 @@ export function AuthForm({ onAuthenticate }: AuthFormProps) {
                       id="customerId"
                       value={customerId}
                       onChange={(e) => { setCustomerId(e.target.value); setError(''); }}
-                      placeholder="UUID do customer"
+                      placeholder=""
                       className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
                       autoComplete="username"
                     />
@@ -159,7 +159,7 @@ export function AuthForm({ onAuthenticate }: AuthFormProps) {
                       id="customerSecret"
                       value={customerSecret}
                       onChange={(e) => { setCustomerSecret(e.target.value); setError(''); }}
-                      placeholder="Secret gerado no registro"
+                      placeholder=""
                       className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       autoComplete="current-password"
                     />

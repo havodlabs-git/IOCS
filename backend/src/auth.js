@@ -1,8 +1,17 @@
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "12h";
-const ADMIN_API_KEY = process.env.ADMIN_API_KEY || "";
+
+// Se ADMIN_API_KEY não estiver definida, gera uma chave aleatória segura e imprime nos logs.
+const ADMIN_API_KEY = process.env.ADMIN_API_KEY || (() => {
+  const generated = crypto.randomBytes(32).toString("hex");
+  console.warn("[AUTH] ADMIN_API_KEY não definida. Chave gerada automaticamente:");
+  console.warn("[AUTH] X-Admin-Key:", generated);
+  console.warn("[AUTH] Defina ADMIN_API_KEY como variável de ambiente para fixar este valor.");
+  return generated;
+})();
 
 function getBearerToken(req) {
   const h = req.headers.authorization || "";

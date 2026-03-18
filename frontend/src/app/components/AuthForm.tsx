@@ -98,9 +98,9 @@ export function AuthForm({ onAuthenticate }: AuthFormProps) {
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erro desconhecido';
-      if (msg === 'INVALID_CUSTOMER_SECRET') setError('Customer Secret inválido.');
-      else if (msg === 'CUSTOMER_NOT_FOUND') setError('Customer ID não encontrado.');
-      else setError(`Falha na autenticação: ${msg}`);
+      // Mensagem genérica para não revelar se o ID ou o secret estão errados (information disclosure)
+      void msg;
+      setError('Credenciais inválidas. Verifique os dados e tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -119,8 +119,8 @@ export function AuthForm({ onAuthenticate }: AuthFormProps) {
       await onAuthenticate(pendingAuth);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erro';
-      if (msg === 'INVALID_MFA_CODE') setMfaError('Código inválido. Tente novamente.');
-      else setMfaError(`Erro: ${msg}`);
+      void msg;
+      setMfaError('Código inválido. Tente novamente.');
     } finally {
       setMfaLoading(false);
     }

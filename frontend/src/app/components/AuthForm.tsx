@@ -11,10 +11,15 @@ export interface AuthData {
 }
 
 interface AuthFormProps {
-  onAuthenticate: (data: AuthData) => void;
+  onAuthenticate: (data: AuthData) => Promise<void> | void;
 }
 
 type Step = 'credentials' | 'mfa';
+
+// Verifica se o customerId é o utilizador admin especial
+function isAdminId(id: string) {
+  return id.trim().toLowerCase() === 'admin';
+}
 
 export function AuthForm({ onAuthenticate }: AuthFormProps) {
   const [step, setStep] = useState<Step>('credentials');
@@ -47,6 +52,20 @@ export function AuthForm({ onAuthenticate }: AuthFormProps) {
 
     setLoading(true);
     try {
+      // ── Admin login: não passa pela API de token ──────────────────────────
+      if (isAdminId(customerId)) {
+        const adminAuthData: AuthData = {
+          customerId: 'admin',
+          customerSecret: customerSecret.trim(),
+          customerName: 'Administrador',
+          token: '', // não usado no modo admin
+        };
+        // onAuthenticate irá validar a chave e activar o painel admin
+        await onAuthenticate(adminAuthData);
+        return;
+      }
+
+      // ── Customer login normal ─────────────────────────────────────────────
       const res = await getCustomerToken(customerId.trim(), customerSecret.trim());
 
       let customerName = customerId.trim();
@@ -75,7 +94,7 @@ export function AuthForm({ onAuthenticate }: AuthFormProps) {
         setMfaError('');
         setStep('mfa');
       } else {
-        onAuthenticate(authData);
+        await onAuthenticate(authData);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erro desconhecido';
@@ -97,7 +116,7 @@ export function AuthForm({ onAuthenticate }: AuthFormProps) {
     setMfaError('');
     try {
       await validateMfaLogin(pendingAuth.customerId, clean);
-      onAuthenticate(pendingAuth);
+      await onAuthenticate(pendingAuth);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erro';
       if (msg === 'INVALID_MFA_CODE') setMfaError('Código inválido. Tente novamente.');
@@ -164,7 +183,12 @@ export function AuthForm({ onAuthenticate }: AuthFormProps) {
                       autoComplete="current-password"
                     />
                   </div>
-                  {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+                  {error && (
+                    <div className="flex items-center gap-2 mt-2 text-sm text-red-600">
+                      <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                      {error}
+                    </div>
+                  )}
                 </div>
                 <button
                   type="submit"

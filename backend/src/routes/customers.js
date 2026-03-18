@@ -4,7 +4,7 @@ const bcrypt = require("bcryptjs");
 const { v4: uuidv4 } = require("uuid");
 
 const { pool } = require("../db");
-const { issueCustomerToken, verifyToken } = require("../auth");
+const { issueCustomerToken, verifyToken, requireAdmin } = require("../auth");
 
 const router = express.Router();
 
@@ -170,6 +170,54 @@ router.post("/token/auth", (req, res) => {
     });
   } catch {
     return res.status(401).json({ valid: false, error: "INVALID_OR_EXPIRED_TOKEN" });
+  }
+});
+
+/**
+ * GET /api/customer/list
+ * Lista todos os customers (requer Admin Key)
+ */
+router.get("/list", requireAdmin, async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT c.id, c.name, c.created_at,
+              COUNT(DISTINCT i.id) FILTER (WHERE i.scope = 'CUSTOMER') AS ioc_count,
+              COUNT(DISTINCT i.id) FILTER (WHERE i.scope = 'GLOBAL' AND i.approval_status = 'PENDING') AS pending_count
+       FROM customers c
+       LEFT JOIN iocs i ON i.customer_id = c.id
+       GROUP BY c.id, c.name, c.created_at
+       ORDER BY c.created_at DESC`
+    );
+    return res.status(200).json({
+      total: r.rowCount,
+      data: r.rows.map(row => ({
+        id: row.id,
+        name: row.name,
+        createdAt: row.created_at,
+        iocCount: parseInt(row.ioc_count, 10),
+        pendingCount: parseInt(row.pending_count, 10)
+      }))
+    });
+  } catch (e) {
+    console.error('[ERROR] customer/list:', e);
+    return res.status(500).json({ error: "INTERNAL_ERROR" });
+  }
+});
+
+/**
+ * DELETE /api/customer/delete?id=...
+ * Remove um customer e todos os seus IOCs (requer Admin Key)
+ */
+router.delete("/delete", requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ error: "CUSTOMER_ID_REQUIRED" });
+    const r = await pool.query("DELETE FROM customers WHERE id = $1 RETURNING id", [id]);
+    if (r.rowCount === 0) return res.status(404).json({ error: "CUSTOMER_NOT_FOUND" });
+    return res.status(200).json({ success: true, id });
+  } catch (e) {
+    console.error('[ERROR] customer/delete:', e);
+    return res.status(500).json({ error: "INTERNAL_ERROR" });
   }
 });
 
